@@ -1,0 +1,33 @@
+function sendQueuedEmails() {
+  const sheetName = "EmailQueue";
+  const ss = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(sheetName);
+  const data = ss.getDataRange().getValues();
+
+  for (let i = 1; i < data.length; i++) {
+    const [email, subject, body, driveLink, status] = data[i];
+    
+    if (status === "Sent") continue;
+
+    try {
+      let options = { htmlBody: body };
+
+      if (driveLink && driveLink.includes("drive.google.com")) {
+        const fileId = extractDriveFileId(driveLink);
+        const file = DriveApp.getFileById(fileId);
+        options.attachments = [file.getAs(MimeType.PDF)];
+      }
+
+      GmailApp.sendEmail(email, subject, "", options);
+      ss.getRange(i + 1, 5).setValue("Sent");
+      Logger.log("Email sent to: " + email);
+
+    } catch (e) {
+      Logger.log("Failed to send to " + email + ": " + e.message);
+    }
+  }
+}
+
+function extractDriveFileId(link) {
+  const match = link.match(/[-\\w]{25,}/);
+  return match ? match[0] : null;
+}
